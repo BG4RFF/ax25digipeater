@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <error.h>
 
 // Socket Libraries
 
@@ -33,6 +34,7 @@ int main(int argc, char *argv[]) {
   int socket_file_descriptor;
   struct sockaddr socket_address;
   int address_size = sizeof(socket_address);
+  int packet_size;
   struct ifreq interface_request;
   int proto = ETH_P_AX25; // ETH_P_AX25 is defined on netax25/ax25.h
   char *port = NULL, *device = NULL;
@@ -52,6 +54,28 @@ int main(int argc, char *argv[]) {
     return 1;
   }
   // printf("Socket has been created\n");
+
+  while(1) {
+    address_size = sizeof(socket_address);
+    packet_size = recvfrom(socket_file_descriptor, buffer, buffer_size, 0, &socket_address, &address_size);
+
+    if (packet_size == -1) {
+      perror("recv");
+      return 1;
+    }
+
+    if (device != NULL && strcmp(device, socket_address.sa_data) != 0)
+      continue;
+
+    strcpy(interface_request.ifr_name, socket_address.sa_data);
+    if (ioctl(socket_file_descriptor, SIOCGIFHWADDR, &interface_request) < 0)
+      perror("GIFHWADDR");
+
+    if (interface_request.ifr_hwaddr.sa_family == AF_AX25) {
+      printf("Got a packet\n");
+      continue;
+    }
+  }
   close(socket_file_descriptor);
   // printf("Socket has been closed\n");
 }
