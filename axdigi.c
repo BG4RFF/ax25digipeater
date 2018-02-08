@@ -52,6 +52,22 @@ void print_call(unsigned char *bptr){
 			(bptr[6] >> 1) & 0xf);
 }
 
+void change_digipeat_bit(unsigned char *packet_buffer, int packet_buffer_size, int digipeater_address_number) {
+  unsigned char *byte_pointer;
+
+  byte_pointer = packet_buffer + 1 + ax_address_length + ax_address_length;
+
+  while(digipeater_address_number != 0){
+    byte_pointer += ax_address_length;
+    digipeater_address_number--;
+  }
+  // printf("Digipeater is: ");
+  // print_call(byte_pointer);
+  // printf("\n");
+
+  byte_pointer[6] |= has_been_repeated_bit;
+}
+
 int check_digipeater_address(unsigned char *packet_buffer, int packet_buffer_size, unsigned char *port_callsign){
   unsigned char *byte_pointer;
   int digipeater_count, iterator;
@@ -65,7 +81,7 @@ int check_digipeater_address(unsigned char *packet_buffer, int packet_buffer_siz
   }
 
   byte_pointer += ax_address_length;
-  digipeater_count = 1;
+  digipeater_count = 0;
   while (digipeater_count < AX25_MAX_DIGIS && ((byte_pointer - packet_buffer) < packet_buffer_size)) {
     if (byte_pointer[6] & has_been_repeated_bit) {
       byte_pointer += ax_address_length;
@@ -83,13 +99,14 @@ int check_digipeater_address(unsigned char *packet_buffer, int packet_buffer_siz
     }
     else {
       printf("Found a digipeater address that is not ours\n");
-      return 0;
+      return -1;
     }
   }
 }
 
 int main(int argc, char *argv[]) {
   char *port = NULL, *device = NULL;
+  int digipeater_address_number;
   unsigned char buffer[buffer_size];
 
   if (ax25_config_load_ports() == 0)
@@ -124,9 +141,16 @@ int main(int argc, char *argv[]) {
       perror("GIFHWADDR");
 
     if (interface_request.ifr_hwaddr.sa_family == AF_AX25) {
-      if (check_digipeater_address(buffer, buffer_size, interface_request.ifr_hwaddr.sa_data) == -1)
+      digipeater_address_number = check_digipeater_address(buffer, buffer_size, interface_request.ifr_hwaddr.sa_data);
+      if (digipeater_address_number == -1){
         printf("Got a packet without digipeater\n");
-      continue;
+        continue;
+      }
+      change_digipeat_bit(buffer, buffer_size, digipeater_address_number);
+      if (sendto(socket_file_descriptor, buffer, packet_size, 0, &socket_address, address_size) == -1){
+        perror("sendto");
+        continue;
+      }
     }
   }
   close(socket_file_descriptor);
