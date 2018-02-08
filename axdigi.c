@@ -29,8 +29,9 @@
 #define has_been_repeated_bit 0x80
 #define max_ax25_ports 16
 #define buffer_size 1500
+#define ssid_mask 0x1e
 
-/* Nama fungsi: digipeat_packet
+/* Nama fungsi: check_digipeater_address
  * Argumen:
  * 1. unsigned char *packet_buffer : pointer yang menunjukkan lokasi memory
  *    posisi dari elemen pertama dari string paket yang diterima
@@ -38,10 +39,22 @@
  * 3. unsigned char *port : pointer dari port socket yang menerima paket
  */
 
-int digipeat_packet(unsigned char *packet_buffer, int packet_buffer_size, unsigned char *port){
+int socket_file_descriptor;
+struct sockaddr socket_address;
+int address_size = sizeof(socket_address);
+int packet_size;
+struct ifreq interface_request;
+int proto = ETH_P_AX25; // ETH_P_AX25 is defined on netax25/ax25.h
+
+void print_call(unsigned char *bptr){
+	printf("%c%c%c%c%c%c-%d", bptr[0] >> 1, bptr[1] >> 1,
+			bptr[2] >> 1, bptr[3] >> 1, bptr[4] >> 1, bptr[5] >> 1,
+			(bptr[6] >> 1) & 0xf);
+}
+
+int check_digipeater_address(unsigned char *packet_buffer, int packet_buffer_size, unsigned char *port_callsign){
   unsigned char *byte_pointer;
-  int count, iterator;
-  unsigned char *call;
+  int digipeater_count, iterator;
 
   byte_pointer = packet_buffer + 1;
   byte_pointer += ax_address_length;
@@ -51,16 +64,31 @@ int digipeat_packet(unsigned char *packet_buffer, int packet_buffer_size, unsign
     return -1;
   }
 
-  return 0;
+  byte_pointer += ax_address_length;
+  digipeater_count = 1;
+  while (digipeater_count < AX25_MAX_DIGIS && ((byte_pointer - packet_buffer) < packet_buffer_size)) {
+    if (byte_pointer[6] & has_been_repeated_bit) {
+      byte_pointer += ax_address_length;
+      digipeater_count++;
+      continue;
+    }
+    if ((bcmp(byte_pointer, port_callsign, 6) == 0) && ((byte_pointer[6] & ssid_mask) == (port_callsign[6] & ssid_mask))) {
+      printf("Found our callsign in a digipeater address\n");
+      // printf("Byte_pointer = %.7s and Socket_address = %.7s", byte_pointer, interface_request.ifr_hwaddr.sa_data);
+      // printf("Packet digipeater address: ");
+      // print_call(byte_pointer);
+      // printf(" and my digipeater address: ");
+      // print_call(interface_request.ifr_hwaddr.sa_data);
+      return digipeater_count;
+    }
+    else {
+      printf("Found a digipeater address that is not ours\n");
+      return 0;
+    }
+  }
 }
 
 int main(int argc, char *argv[]) {
-  int socket_file_descriptor;
-  struct sockaddr socket_address;
-  int address_size = sizeof(socket_address);
-  int packet_size;
-  struct ifreq interface_request;
-  int proto = ETH_P_AX25; // ETH_P_AX25 is defined on netax25/ax25.h
   char *port = NULL, *device = NULL;
   unsigned char buffer[buffer_size];
 
@@ -96,10 +124,8 @@ int main(int argc, char *argv[]) {
       perror("GIFHWADDR");
 
     if (interface_request.ifr_hwaddr.sa_family == AF_AX25) {
-      if (digipeat_packet(buffer, buffer_size, socket_address.sa_data) == -1)
+      if (check_digipeater_address(buffer, buffer_size, interface_request.ifr_hwaddr.sa_data) == -1)
         printf("Got a packet without digipeater\n");
-      else
-        printf("Got a packet, God knows what\n");
       continue;
     }
   }
