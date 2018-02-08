@@ -52,11 +52,7 @@ void print_call(unsigned char *bptr){
 			(bptr[6] >> 1) & 0xf);
 }
 
-<<<<<<< HEAD
 int check_digipeater_address(unsigned char *packet_buffer, int packet_buffer_size, unsigned char *port_callsign){
-=======
-int check_digipeater_address(unsigned char *packet_buffer, int packet_buffer_size, unsigned char *port){
->>>>>>> eb12dfe8bce6c994c964f5d13e54e4f0f91eb996
   unsigned char *byte_pointer;
   int digipeater_count, iterator;
 
@@ -76,12 +72,7 @@ int check_digipeater_address(unsigned char *packet_buffer, int packet_buffer_siz
       digipeater_count++;
       continue;
     }
-<<<<<<< HEAD
     if ((bcmp(byte_pointer, port_callsign, 6) == 0) && ((byte_pointer[6] & ssid_mask) == (port_callsign[6] & ssid_mask))) {
-=======
-    if ((bcmp(byte_pointer, interface_request.ifr_hwaddr.sa_data, 6) == 0) && ((byte_pointer[6] & ssid_mask) ==
-        (interface_request.ifr_hwaddr.sa_data[6] & ssid_mask))) {
->>>>>>> eb12dfe8bce6c994c964f5d13e54e4f0f91eb996
       printf("Found our callsign in a digipeater address\n");
       // printf("Byte_pointer = %.7s and Socket_address = %.7s", byte_pointer, interface_request.ifr_hwaddr.sa_data);
       // printf("Packet digipeater address: ");
@@ -133,11 +124,7 @@ int main(int argc, char *argv[]) {
       perror("GIFHWADDR");
 
     if (interface_request.ifr_hwaddr.sa_family == AF_AX25) {
-<<<<<<< HEAD
       if (check_digipeater_address(buffer, buffer_size, interface_request.ifr_hwaddr.sa_data) == -1)
-=======
-      if (check_digipeater_address(buffer, buffer_size, socket_address.sa_data) == -1)
->>>>>>> eb12dfe8bce6c994c964f5d13e54e4f0f91eb996
         printf("Got a packet without digipeater\n");
       continue;
     }
