@@ -30,6 +30,30 @@
 #define max_ax25_ports 16
 #define buffer_size 1500
 
+/* Nama fungsi: digipeat_packet
+ * Argumen:
+ * 1. unsigned char *packet_buffer : pointer yang menunjukkan lokasi memory
+ *    posisi dari elemen pertama dari string paket yang diterima
+ * 2. int packet_buffer_size : panjang string paket yang diterima
+ * 3. unsigned char *port : pointer dari port socket yang menerima paket
+ */
+
+int digipeat_packet(unsigned char *packet_buffer, int packet_buffer_size, unsigned char *port){
+  unsigned char *byte_pointer;
+  int count, iterator;
+  unsigned char *call;
+
+  byte_pointer = packet_buffer + 1;
+  byte_pointer += ax_address_length;
+
+  // Check the end byte of source address to see if digipeater address available
+  if (byte_pointer[6] & end_address_bit) {
+    return -1;
+  }
+
+  return 0;
+}
+
 int main(int argc, char *argv[]) {
   int socket_file_descriptor;
   struct sockaddr socket_address;
@@ -72,7 +96,10 @@ int main(int argc, char *argv[]) {
       perror("GIFHWADDR");
 
     if (interface_request.ifr_hwaddr.sa_family == AF_AX25) {
-      printf("Got a packet\n");
+      if (digipeat_packet(buffer, buffer_size, socket_address.sa_data) == -1)
+        printf("Got a packet without digipeater\n");
+      else
+        printf("Got a packet, God knows what\n");
       continue;
     }
   }
